@@ -36,24 +36,6 @@ class RAGConfig:
     show_retrieved_docs: bool = False
 
 
-def build_history_aware_retriever_prompt() -> ChatPromptTemplate:
-    return ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "Rewrite the current user question into one retrieval query. "
-                "Give highest priority to the current question. "
-                "Use chat history only if needed to resolve references (for example pronouns, omitted entities, or time context). "
-                "Do not overuse history, do not add new facts, and do not expand scope unnecessarily. "
-                "If the current question is already standalone, return it unchanged. "
-                "Return only the rewritten query text.",
-            ),
-            MessagesPlaceholder(variable_name="chat_history"),
-            ("human", "{input}"),
-        ]
-    )
-
-
 class RAGPipeline:
     def __init__(self, config: RAGConfig):
         self.config = config
@@ -81,6 +63,21 @@ class RAGPipeline:
                     "human",
                     "Retrieved context:\n{context}\n\nCurrent question: {question}",
                 ),
+            ]
+        )
+        self.retriever_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "Rewrite the current user question into one retrieval query. "
+                    "Give highest priority to the current question. "
+                    "Use chat history only if needed to resolve references (for example pronouns, omitted entities, or time context). "
+                    "Do not overuse history, do not add new facts, and do not expand scope unnecessarily. "
+                    "If the current question is already standalone, return it unchanged. "
+                    "Return only the rewritten query text.",
+                ),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("human", "{input}"),
             ]
         )
 
@@ -187,7 +184,7 @@ class RAGPipeline:
             self.history_aware_retriever = create_history_aware_retriever(
                 llm=self.llm,
                 retriever=self.retriever,
-                prompt=build_history_aware_retriever_prompt(),
+                prompt=self.retriever_prompt,
             )
         return self.history_aware_retriever
 
